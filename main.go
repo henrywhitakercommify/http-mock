@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/henrywhitakercommify/http-mock/internal/config"
+	"github.com/henrywhitakercommify/http-mock/internal/http"
 	"github.com/spf13/pflag"
 )
 
@@ -35,6 +39,19 @@ func main() {
 	})))
 
 	slog.Debug("loaded config", "config", conf)
+
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	srv, err := http.New(conf.Endpoints)
+	if err != nil {
+		fmt.Printf("Could not init http server: %v", err)
+		os.Exit(1)
+	}
+
+	if err := srv.Run(ctx); err != nil {
+		fmt.Printf("Could not run http server: %v", err)
+	}
 }
 
 func slogLevel(level string) slog.Level {
