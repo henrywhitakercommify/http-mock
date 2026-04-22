@@ -34,6 +34,9 @@ func New(endpoints []config.Endpoint) (*HTTP, error) {
 		mux.Handle(e.Path, handler)
 	}
 
+	mux.HandleFunc("/healthz", healthy())
+	mux.HandleFunc("/readyz", ready())
+
 	return &HTTP{
 		server: srv,
 		logger: slog,
@@ -54,6 +57,18 @@ func (h *HTTP) shutdown() error {
 	defer cancel()
 
 	return h.server.Shutdown(ctx)
+}
+
+func healthy() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func ready() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 func (h *HTTP) Run(ctx context.Context) error {
