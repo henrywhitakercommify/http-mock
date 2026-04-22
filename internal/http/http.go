@@ -27,7 +27,11 @@ func New(endpoints []config.Endpoint) (*HTTP, error) {
 	slog := slog.With("component", "http")
 
 	for _, e := range endpoints {
-		mux.Handle(e.Path, buildHandler(e, slog))
+		handler, err := buildHandler(e, slog)
+		if err != nil {
+			return nil, fmt.Errorf("build handler: %w", err)
+		}
+		mux.Handle(e.Path, handler)
 	}
 
 	return &HTTP{

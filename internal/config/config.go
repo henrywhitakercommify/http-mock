@@ -17,10 +17,12 @@ type Endpoint struct {
 
 	StatusCode int `yaml:"status_code"`
 
-	// When both are set, a random value between these durations
-	// will be chosen to wait before responding
+	// When both are set, a random delay is added before responding.
+	// 95% of delays will fall at or below P95Delay, with MaxDelay
+	// as the absolute ceiling.
 	MinDelay time.Duration `yaml:"minDelay"`
 	MaxDelay time.Duration `yaml:"maxDelay"`
+	P95Delay time.Duration `yaml:"p95Delay"`
 }
 
 type Config struct {
