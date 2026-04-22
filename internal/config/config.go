@@ -12,6 +12,7 @@ import (
 type Response struct {
 	// Supports go templating with a .Request object
 	// e.g. .Request.body.field
+	Code    int               `yaml:"code"`
 	Body    string            `yaml:"body"`
 	Headers map[string]string `yaml:"headers"`
 }
@@ -19,8 +20,6 @@ type Response struct {
 type Endpoint struct {
 	Path     string   `yaml:"path"`
 	Response Response `yaml:"response"`
-
-	StatusCode int `yaml:"status_code"`
 
 	// When both are set, a random delay is added before responding.
 	// 95% of delays will fall at or below P95Delay, with MaxDelay

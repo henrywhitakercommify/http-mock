@@ -57,7 +57,11 @@ func buildHandler(endpoint config.Endpoint, slog *slog.Logger) (http.HandlerFunc
 		for key, val := range endpoint.Response.Headers {
 			w.Header().Add(key, val)
 		}
-		w.WriteHeader(endpoint.StatusCode)
+		code := http.StatusOK
+		if endpoint.Response.Code != 0 {
+			code = endpoint.Response.Code
+		}
+		w.WriteHeader(code)
 		_, _ = w.Write(buf.Bytes())
 
 		dur := time.Since(start)

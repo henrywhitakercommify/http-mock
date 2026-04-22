@@ -21,8 +21,8 @@ go run . --config http-mock.yaml
 ---
 endpoints:
   - path: /api/users
-    status_code: 200
     response:
+      code: 200
       headers:
         Content-Type: application/json
       body: '{"method": "{{.Request.Method}}", "name": "{{.Request.Body.name}}"}'
@@ -36,7 +36,7 @@ endpoints:
 | Field | Required | Description |
 |-------|----------|-------------|
 | `path` | yes | The URL path to match |
-| `status_code` | yes | HTTP status code to return |
+| `response.code` | yes | HTTP status code to return |
 | `response.body` | yes | Response body (supports Go templates) |
 | `response.headers` | no | Map of response headers to set |
 | `minDelay` | no | Minimum delay before responding |
