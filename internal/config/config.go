@@ -9,11 +9,16 @@ import (
 	"github.com/henrywhitaker3/windowframe/config"
 )
 
-type Endpoint struct {
-	Path string `yaml:"path"`
+type Response struct {
 	// Supports go templating with a .Request object
 	// e.g. .Request.body.field
-	Response string `yaml:"response"`
+	Body    string            `yaml:"body"`
+	Headers map[string]string `yaml:"headers"`
+}
+
+type Endpoint struct {
+	Path     string   `yaml:"path"`
+	Response Response `yaml:"response"`
 
 	StatusCode int `yaml:"status_code"`
 

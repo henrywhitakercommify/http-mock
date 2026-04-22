@@ -49,7 +49,7 @@ func newRequestData(r *http.Request) requestData {
 }
 
 func buildHandler(endpoint config.Endpoint, slog *slog.Logger) (http.HandlerFunc, error) {
-	tmpl, err := template.New(endpoint.Path).Parse(endpoint.Response)
+	tmpl, err := template.New(endpoint.Path).Parse(endpoint.Response.Body)
 	if err != nil {
 		return nil, fmt.Errorf("build response template: %w", err)
 	}
@@ -74,6 +74,9 @@ func buildHandler(endpoint config.Endpoint, slog *slog.Logger) (http.HandlerFunc
 			return
 		}
 
+		for key, val := range endpoint.Response.Headers {
+			w.Header().Add(key, val)
+		}
 		w.WriteHeader(endpoint.StatusCode)
 		_, _ = w.Write(buf.Bytes())
 
