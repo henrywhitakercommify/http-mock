@@ -54,10 +54,10 @@ func testLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
-func TestBuildHandler_StaticResponse(t *testing.T) {
+func TestBuildHandlerStaticResponse(t *testing.T) {
 	endpoint := config.Endpoint{
 		Path:       "/test",
-		Response:   "hello world",
+		Response:   config.Response{Body: "hello world"},
 		StatusCode: 200,
 	}
 
@@ -78,10 +78,10 @@ func TestBuildHandler_StaticResponse(t *testing.T) {
 	}
 }
 
-func TestBuildHandler_TemplateMethod(t *testing.T) {
+func TestBuildHandlerTemplateMethod(t *testing.T) {
 	endpoint := config.Endpoint{
 		Path:       "/method",
-		Response:   "method: {{.Request.Method}}",
+		Response:   config.Response{Body: "method: {{.Request.Method}}"},
 		StatusCode: 200,
 	}
 
@@ -99,10 +99,10 @@ func TestBuildHandler_TemplateMethod(t *testing.T) {
 	}
 }
 
-func TestBuildHandler_TemplateQuery(t *testing.T) {
+func TestBuildHandlerTemplateQuery(t *testing.T) {
 	endpoint := config.Endpoint{
 		Path:       "/query",
-		Response:   "name: {{index .Request.Query.name 0}}",
+		Response:   config.Response{Body: "name: {{index .Request.Query.name 0}}"},
 		StatusCode: 200,
 	}
 
@@ -120,10 +120,10 @@ func TestBuildHandler_TemplateQuery(t *testing.T) {
 	}
 }
 
-func TestBuildHandler_TemplateJSONBody(t *testing.T) {
+func TestBuildHandlerTemplateJSONBody(t *testing.T) {
 	endpoint := config.Endpoint{
 		Path:       "/body",
-		Response:   "greeting: {{.Request.Body.greeting}}",
+		Response:   config.Response{Body: "greeting: {{.Request.Body.greeting}}"},
 		StatusCode: 200,
 	}
 
@@ -134,6 +134,7 @@ func TestBuildHandler_TemplateJSONBody(t *testing.T) {
 
 	body := strings.NewReader(`{"greeting":"hello"}`)
 	req := httptest.NewRequest(http.MethodPost, "/body", body)
+	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	handler(rec, req)
 
@@ -142,10 +143,101 @@ func TestBuildHandler_TemplateJSONBody(t *testing.T) {
 	}
 }
 
-func TestBuildHandler_TemplateHeaders(t *testing.T) {
+func TestBuildHandlerTemplateXMLBody(t *testing.T) {
+	endpoint := config.Endpoint{
+		Path:       "/xml",
+		Response:   config.Response{Body: "greeting: {{.Request.Body.greeting}}"},
+		StatusCode: 200,
+	}
+
+	handler, err := buildHandler(endpoint, testLogger())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	body := strings.NewReader(`<root><greeting>hello</greeting></root>`)
+	req := httptest.NewRequest(http.MethodPost, "/xml", body)
+	req.Header.Set("Content-Type", "application/xml")
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Body.String() != "greeting: hello" {
+		t.Fatalf("got body %q, want %q", rec.Body.String(), "greeting: hello")
+	}
+}
+
+func TestBuildHandlerTemplateXMLNestedBody(t *testing.T) {
+	endpoint := config.Endpoint{
+		Path:       "/xml-nested",
+		Response:   config.Response{Body: "city: {{.Request.Body.address.city}}"},
+		StatusCode: 200,
+	}
+
+	handler, err := buildHandler(endpoint, testLogger())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	body := strings.NewReader(`<root><address><city>London</city></address></root>`)
+	req := httptest.NewRequest(http.MethodPost, "/xml-nested", body)
+	req.Header.Set("Content-Type", "text/xml")
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Body.String() != "city: London" {
+		t.Fatalf("got body %q, want %q", rec.Body.String(), "city: London")
+	}
+}
+
+func TestBuildHandlerTemplateXMLWithCharset(t *testing.T) {
+	endpoint := config.Endpoint{
+		Path:       "/xml-charset",
+		Response:   config.Response{Body: "name: {{.Request.Body.name}}"},
+		StatusCode: 200,
+	}
+
+	handler, err := buildHandler(endpoint, testLogger())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	body := strings.NewReader(`<root><name>alice</name></root>`)
+	req := httptest.NewRequest(http.MethodPost, "/xml-charset", body)
+	req.Header.Set("Content-Type", "application/xml; charset=utf-8")
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Body.String() != "name: alice" {
+		t.Fatalf("got body %q, want %q", rec.Body.String(), "name: alice")
+	}
+}
+
+func TestBuildHandlerJSONFallbackWithNoContentType(t *testing.T) {
+	endpoint := config.Endpoint{
+		Path:       "/no-ct",
+		Response:   config.Response{Body: "val: {{.Request.Body.key}}"},
+		StatusCode: 200,
+	}
+
+	handler, err := buildHandler(endpoint, testLogger())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	body := strings.NewReader(`{"key":"value"}`)
+	req := httptest.NewRequest(http.MethodPost, "/no-ct", body)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Body.String() != "val: value" {
+		t.Fatalf("got body %q, want %q", rec.Body.String(), "val: value")
+	}
+}
+
+func TestBuildHandlerTemplateHeaders(t *testing.T) {
 	endpoint := config.Endpoint{
 		Path:       "/headers",
-		Response:   "auth: {{index .Request.Headers.Authorization 0}}",
+		Response:   config.Response{Body: "auth: {{index .Request.Headers.Authorization 0}}"},
 		StatusCode: 200,
 	}
 
@@ -164,10 +256,10 @@ func TestBuildHandler_TemplateHeaders(t *testing.T) {
 	}
 }
 
-func TestBuildHandler_InvalidTemplate(t *testing.T) {
+func TestBuildHandlerInvalidTemplate(t *testing.T) {
 	endpoint := config.Endpoint{
 		Path:       "/bad",
-		Response:   "{{.Invalid",
+		Response:   config.Response{Body: "{{.Invalid"},
 		StatusCode: 200,
 	}
 
@@ -177,10 +269,10 @@ func TestBuildHandler_InvalidTemplate(t *testing.T) {
 	}
 }
 
-func TestBuildHandler_StatusCode(t *testing.T) {
+func TestBuildHandlerStatusCode(t *testing.T) {
 	endpoint := config.Endpoint{
 		Path:       "/not-found",
-		Response:   "not found",
+		Response:   config.Response{Body: "not found"},
 		StatusCode: 404,
 	}
 
