@@ -15,6 +15,8 @@ type Endpoint struct {
 	// e.g. .Request.body.field
 	Response string `yaml:"response"`
 
+	StatusCode int `yaml:"status_code"`
+
 	// When both are set, a random value between these durations
 	// will be chosen to wait before responding
 	MinDelay time.Duration `yaml:"minDelay"`
