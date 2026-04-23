@@ -57,6 +57,9 @@ func (h *HTTP) buildHandler(endpoint config.Endpoint) (http.HandlerFunc, error) 
 			"uuid": func() string {
 				return uuid.New().String()
 			},
+			"time": func() string {
+				return time.Now().Format(time.RFC3339)
+			},
 		},
 	).Parse(endpoint.Response.Body)
 	if err != nil {
