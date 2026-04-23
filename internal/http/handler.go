@@ -6,7 +6,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"log/slog"
 	"math"
 	"math/rand/v2"
 	"mime"
@@ -28,7 +27,9 @@ type requestData struct {
 	Body    map[string]any
 }
 
-func buildHandler(endpoint config.Endpoint, slog *slog.Logger) (http.HandlerFunc, error) {
+func (h *HTTP) buildHandler(endpoint config.Endpoint) (http.HandlerFunc, error) {
+	slog := h.logger
+
 	tmpl, err := template.New(endpoint.Path).Parse(endpoint.Response.Body)
 	if err != nil {
 		return nil, fmt.Errorf("build response template: %w", err)
@@ -76,6 +77,7 @@ func buildHandler(endpoint config.Endpoint, slog *slog.Logger) (http.HandlerFunc
 			"duration_ms",
 			dur.Milliseconds(),
 		)
+		h.requestsSeconds.WithLabelValues(r.URL.Path, r.Method).Observe(dur.Seconds())
 	}, nil
 }
 

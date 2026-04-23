@@ -10,11 +10,15 @@ import (
 	"time"
 
 	"github.com/henrywhitakercommify/http-mock/internal/config"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type HTTP struct {
 	server *http.Server
 	logger *slog.Logger
+
+	requestsSeconds *prometheus.HistogramVec
 }
 
 func New(endpoints []config.Endpoint) (*HTTP, error) {
@@ -26,8 +30,13 @@ func New(endpoints []config.Endpoint) (*HTTP, error) {
 
 	slog := slog.With("component", "http")
 
+	out := &HTTP{
+		server: srv,
+		logger: slog,
+	}
+
 	for _, e := range endpoints {
-		handler, err := buildHandler(e, slog)
+		handler, err := out.buildHandler(e)
 		if err != nil {
 			return nil, fmt.Errorf("build handler: %w", err)
 		}
@@ -36,11 +45,20 @@ func New(endpoints []config.Endpoint) (*HTTP, error) {
 
 	mux.HandleFunc("/healthz", healthy())
 	mux.HandleFunc("/readyz", ready())
+	mux.Handle("/metrics", promhttp.Handler())
 
-	return &HTTP{
-		server: srv,
-		logger: slog,
-	}, nil
+	reqeustsSeconds := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "reqeuests_seconds",
+			Help: "The number of seconds a request took to process",
+		},
+		[]string{"path", "method"},
+	)
+
+	prometheus.Register(reqeustsSeconds)
+	out.requestsSeconds = reqeustsSeconds
+
+	return out, nil
 }
 
 func (h *HTTP) start() error {

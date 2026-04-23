@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/henrywhitakercommify/http-mock/internal/config"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func TestRandDelay(t *testing.T) {
@@ -54,14 +55,25 @@ func testLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
+func testHTTP() *HTTP {
+	return &HTTP{
+		logger: testLogger(),
+		requestsSeconds: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name: "test_requests_seconds",
+			},
+			[]string{"path", "method"},
+		),
+	}
+}
+
 func TestBuildHandlerStaticResponse(t *testing.T) {
 	endpoint := config.Endpoint{
-		Path:       "/test",
-		Response:   config.Response{Body: "hello world"},
-		StatusCode: 200,
+		Path:     "/test",
+		Response: config.Response{Body: "hello world", Code: 200},
 	}
 
-	handler, err := buildHandler(endpoint, testLogger())
+	handler, err := testHTTP().buildHandler(endpoint)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -80,12 +92,11 @@ func TestBuildHandlerStaticResponse(t *testing.T) {
 
 func TestBuildHandlerTemplateMethod(t *testing.T) {
 	endpoint := config.Endpoint{
-		Path:       "/method",
-		Response:   config.Response{Body: "method: {{.Request.Method}}"},
-		StatusCode: 200,
+		Path:     "/method",
+		Response: config.Response{Body: "method: {{.Request.Method}}", Code: 200},
 	}
 
-	handler, err := buildHandler(endpoint, testLogger())
+	handler, err := testHTTP().buildHandler(endpoint)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -101,12 +112,11 @@ func TestBuildHandlerTemplateMethod(t *testing.T) {
 
 func TestBuildHandlerTemplateQuery(t *testing.T) {
 	endpoint := config.Endpoint{
-		Path:       "/query",
-		Response:   config.Response{Body: "name: {{index .Request.Query.name 0}}"},
-		StatusCode: 200,
+		Path:     "/query",
+		Response: config.Response{Body: "name: {{index .Request.Query.name 0}}", Code: 200},
 	}
 
-	handler, err := buildHandler(endpoint, testLogger())
+	handler, err := testHTTP().buildHandler(endpoint)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -122,12 +132,11 @@ func TestBuildHandlerTemplateQuery(t *testing.T) {
 
 func TestBuildHandlerTemplateJSONBody(t *testing.T) {
 	endpoint := config.Endpoint{
-		Path:       "/body",
-		Response:   config.Response{Body: "greeting: {{.Request.Body.greeting}}"},
-		StatusCode: 200,
+		Path:     "/body",
+		Response: config.Response{Body: "greeting: {{.Request.Body.greeting}}", Code: 200},
 	}
 
-	handler, err := buildHandler(endpoint, testLogger())
+	handler, err := testHTTP().buildHandler(endpoint)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -145,12 +154,11 @@ func TestBuildHandlerTemplateJSONBody(t *testing.T) {
 
 func TestBuildHandlerTemplateXMLBody(t *testing.T) {
 	endpoint := config.Endpoint{
-		Path:       "/xml",
-		Response:   config.Response{Body: "greeting: {{.Request.Body.greeting}}"},
-		StatusCode: 200,
+		Path:     "/xml",
+		Response: config.Response{Body: "greeting: {{.Request.Body.greeting}}", Code: 200},
 	}
 
-	handler, err := buildHandler(endpoint, testLogger())
+	handler, err := testHTTP().buildHandler(endpoint)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -168,12 +176,11 @@ func TestBuildHandlerTemplateXMLBody(t *testing.T) {
 
 func TestBuildHandlerTemplateXMLNestedBody(t *testing.T) {
 	endpoint := config.Endpoint{
-		Path:       "/xml-nested",
-		Response:   config.Response{Body: "city: {{.Request.Body.address.city}}"},
-		StatusCode: 200,
+		Path:     "/xml-nested",
+		Response: config.Response{Body: "city: {{.Request.Body.address.city}}", Code: 200},
 	}
 
-	handler, err := buildHandler(endpoint, testLogger())
+	handler, err := testHTTP().buildHandler(endpoint)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -191,12 +198,11 @@ func TestBuildHandlerTemplateXMLNestedBody(t *testing.T) {
 
 func TestBuildHandlerTemplateXMLWithCharset(t *testing.T) {
 	endpoint := config.Endpoint{
-		Path:       "/xml-charset",
-		Response:   config.Response{Body: "name: {{.Request.Body.name}}"},
-		StatusCode: 200,
+		Path:     "/xml-charset",
+		Response: config.Response{Body: "name: {{.Request.Body.name}}", Code: 200},
 	}
 
-	handler, err := buildHandler(endpoint, testLogger())
+	handler, err := testHTTP().buildHandler(endpoint)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -214,12 +220,11 @@ func TestBuildHandlerTemplateXMLWithCharset(t *testing.T) {
 
 func TestBuildHandlerJSONFallbackWithNoContentType(t *testing.T) {
 	endpoint := config.Endpoint{
-		Path:       "/no-ct",
-		Response:   config.Response{Body: "val: {{.Request.Body.key}}"},
-		StatusCode: 200,
+		Path:     "/no-ct",
+		Response: config.Response{Body: "val: {{.Request.Body.key}}", Code: 200},
 	}
 
-	handler, err := buildHandler(endpoint, testLogger())
+	handler, err := testHTTP().buildHandler(endpoint)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -236,12 +241,11 @@ func TestBuildHandlerJSONFallbackWithNoContentType(t *testing.T) {
 
 func TestBuildHandlerTemplateHeaders(t *testing.T) {
 	endpoint := config.Endpoint{
-		Path:       "/headers",
-		Response:   config.Response{Body: "auth: {{index .Request.Headers.Authorization 0}}"},
-		StatusCode: 200,
+		Path:     "/headers",
+		Response: config.Response{Body: "auth: {{index .Request.Headers.Authorization 0}}", Code: 200},
 	}
 
-	handler, err := buildHandler(endpoint, testLogger())
+	handler, err := testHTTP().buildHandler(endpoint)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -258,12 +262,11 @@ func TestBuildHandlerTemplateHeaders(t *testing.T) {
 
 func TestBuildHandlerInvalidTemplate(t *testing.T) {
 	endpoint := config.Endpoint{
-		Path:       "/bad",
-		Response:   config.Response{Body: "{{.Invalid"},
-		StatusCode: 200,
+		Path:     "/bad",
+		Response: config.Response{Body: "{{.Invalid", Code: 200},
 	}
 
-	_, err := buildHandler(endpoint, testLogger())
+	_, err := testHTTP().buildHandler(endpoint)
 	if err == nil {
 		t.Fatal("expected error for invalid template, got nil")
 	}
@@ -271,12 +274,11 @@ func TestBuildHandlerInvalidTemplate(t *testing.T) {
 
 func TestBuildHandlerStatusCode(t *testing.T) {
 	endpoint := config.Endpoint{
-		Path:       "/not-found",
-		Response:   config.Response{Body: "not found"},
-		StatusCode: 404,
+		Path:     "/not-found",
+		Response: config.Response{Body: "not found", Code: 404},
 	}
 
-	handler, err := buildHandler(endpoint, testLogger())
+	handler, err := testHTTP().buildHandler(endpoint)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
