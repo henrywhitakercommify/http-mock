@@ -61,6 +61,15 @@ func (h *HTTP) buildHandler(endpoint config.Endpoint) (http.HandlerFunc, error) 
 		}{
 			Request: newRequestData(r),
 		}
+		slog.Debug(
+			"received request",
+			"path",
+			r.URL.Path,
+			"method",
+			r.Method,
+			"body",
+			data.Request.Body,
+		)
 
 		var buf bytes.Buffer
 		if err := tmpl.Execute(&buf, data); err != nil {
@@ -80,7 +89,7 @@ func (h *HTTP) buildHandler(endpoint config.Endpoint) (http.HandlerFunc, error) 
 		_, _ = w.Write(buf.Bytes())
 
 		dur := time.Since(start)
-		slog.Debug(
+		slog.Info(
 			"processed request",
 			"method",
 			r.Method,
@@ -187,10 +196,21 @@ func xmlDecodeElement(decoder *xml.Decoder, parent string) (map[string]any, erro
 				return nil, err
 			}
 			// If the child map has only a single "" key, it's a text-only element
+			var value any
 			if text, ok := child[""]; ok && len(child) == 1 {
-				result[t.Name.Local] = text
+				value = text
 			} else {
-				result[t.Name.Local] = child
+				value = child
+			}
+			// If the key already exists, convert to a slice to preserve all elements
+			if existing, ok := result[t.Name.Local]; ok {
+				if slice, ok := existing.([]any); ok {
+					result[t.Name.Local] = append(slice, value)
+				} else {
+					result[t.Name.Local] = []any{existing, value}
+				}
+			} else {
+				result[t.Name.Local] = value
 			}
 		case xml.CharData:
 			text := strings.TrimSpace(string(t))
