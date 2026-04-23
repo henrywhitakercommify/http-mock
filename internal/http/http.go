@@ -19,6 +19,7 @@ type HTTP struct {
 	logger *slog.Logger
 
 	requestsSeconds *prometheus.HistogramVec
+	requestsCount   *prometheus.CounterVec
 }
 
 func New(endpoints []config.Endpoint) (*HTTP, error) {
@@ -49,14 +50,23 @@ func New(endpoints []config.Endpoint) (*HTTP, error) {
 
 	reqeustsSeconds := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name: "reqeuests_seconds",
+			Name: "http_request_duration_seconds",
 			Help: "The number of seconds a request took to process",
 		},
 		[]string{"path", "method"},
 	)
+	requestsCount := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_requests_total",
+			Help: "The total number of requests",
+		},
+		[]string{"path", "method", "code"},
+	)
 
 	prometheus.Register(reqeustsSeconds)
+	prometheus.Register(requestsCount)
 	out.requestsSeconds = reqeustsSeconds
+	out.requestsCount = requestsCount
 
 	return out, nil
 }

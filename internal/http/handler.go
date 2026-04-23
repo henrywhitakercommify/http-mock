@@ -77,7 +77,15 @@ func (h *HTTP) buildHandler(endpoint config.Endpoint) (http.HandlerFunc, error) 
 			"duration_ms",
 			dur.Milliseconds(),
 		)
-		h.requestsSeconds.WithLabelValues(r.URL.Path, r.Method).Observe(dur.Seconds())
+		h.requestsSeconds.WithLabelValues(
+			r.URL.Path,
+			r.Method,
+		).Observe(dur.Seconds())
+		h.requestsCount.WithLabelValues(
+			r.URL.Path,
+			r.Method,
+			fmt.Sprintf("%d", code),
+		).Inc()
 	}, nil
 }
 
