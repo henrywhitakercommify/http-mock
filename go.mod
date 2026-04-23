@@ -3,6 +3,7 @@ module github.com/henrywhitakercommify/http-mock
 go 1.26.2
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/henrywhitaker3/windowframe v1.13.8
 	github.com/prometheus/client_golang v1.23.2
 	github.com/spf13/pflag v1.0.10

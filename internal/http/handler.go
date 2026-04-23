@@ -2,6 +2,8 @@ package http
 
 import (
 	"bytes"
+	crand "crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -14,6 +16,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/henrywhitakercommify/http-mock/internal/config"
 )
 
@@ -30,7 +33,18 @@ type requestData struct {
 func (h *HTTP) buildHandler(endpoint config.Endpoint) (http.HandlerFunc, error) {
 	slog := h.logger
 
-	tmpl, err := template.New(endpoint.Path).Parse(endpoint.Response.Body)
+	tmpl, err := template.New(endpoint.Path).Funcs(
+		template.FuncMap{
+			"randstr": func(length int) string {
+				buf := make([]byte, length/2)
+				_, _ = crand.Read(buf)
+				return hex.EncodeToString(buf)
+			},
+			"uuid": func() string {
+				return uuid.New().String()
+			},
+		},
+	).Parse(endpoint.Response.Body)
 	if err != nil {
 		return nil, fmt.Errorf("build response template: %w", err)
 	}

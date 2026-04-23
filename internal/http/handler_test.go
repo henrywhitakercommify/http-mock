@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -63,6 +64,12 @@ func testHTTP() *HTTP {
 				Name: "test_requests_seconds",
 			},
 			[]string{"path", "method"},
+		),
+		requestsCount: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "test_requests_count",
+			},
+			[]string{"path", "method", "code"},
 		),
 	}
 }
@@ -257,6 +264,88 @@ func TestBuildHandlerTemplateHeaders(t *testing.T) {
 
 	if rec.Body.String() != "auth: Bearer token123" {
 		t.Fatalf("got body %q, want %q", rec.Body.String(), "auth: Bearer token123")
+	}
+}
+
+func TestBuildHandlerTemplateRandstr(t *testing.T) {
+	endpoint := config.Endpoint{
+		Path:     "/rand",
+		Response: config.Response{Body: `{{randstr 16}}`, Code: 200},
+	}
+
+	handler, err := testHTTP().buildHandler(endpoint)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/rand", nil)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	got := rec.Body.String()
+	if len(got) != 16 {
+		t.Fatalf("got length %d, want 16", len(got))
+	}
+	if match, _ := regexp.MatchString(`^[0-9a-f]{16}$`, got); !match {
+		t.Fatalf("got %q, want hex string", got)
+	}
+
+	// Verify different calls produce different values
+	rec2 := httptest.NewRecorder()
+	handler(rec2, httptest.NewRequest(http.MethodGet, "/rand", nil))
+	if rec.Body.String() == rec2.Body.String() {
+		t.Fatal("expected different random strings across calls")
+	}
+}
+
+func TestBuildHandlerTemplateUUID(t *testing.T) {
+	endpoint := config.Endpoint{
+		Path:     "/uuid",
+		Response: config.Response{Body: `{{uuid}}`, Code: 200},
+	}
+
+	handler, err := testHTTP().buildHandler(endpoint)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/uuid", nil)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	got := rec.Body.String()
+	uuidRegex := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	if !uuidRegex.MatchString(got) {
+		t.Fatalf("got %q, want valid UUID format", got)
+	}
+
+	// Verify different calls produce different UUIDs
+	rec2 := httptest.NewRecorder()
+	handler(rec2, httptest.NewRequest(http.MethodGet, "/uuid", nil))
+	if rec.Body.String() == rec2.Body.String() {
+		t.Fatal("expected different UUIDs across calls")
+	}
+}
+
+func TestBuildHandlerTemplateRandstrAndUUIDInBody(t *testing.T) {
+	endpoint := config.Endpoint{
+		Path:     "/combined",
+		Response: config.Response{Body: `{"id":"{{uuid}}","token":"{{randstr 32}}"}`, Code: 200},
+	}
+
+	handler, err := testHTTP().buildHandler(endpoint)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/combined", nil)
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	got := rec.Body.String()
+	combined := regexp.MustCompile(`^\{"id":"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}","token":"[0-9a-f]{32}"\}$`)
+	if !combined.MatchString(got) {
+		t.Fatalf("got %q, want JSON with uuid and randstr", got)
 	}
 }
 
