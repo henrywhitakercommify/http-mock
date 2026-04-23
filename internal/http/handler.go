@@ -12,6 +12,7 @@ import (
 	"math/rand/v2"
 	"mime"
 	"net/http"
+	"regexp"
 	"strings"
 	"text/template"
 	"time"
@@ -27,11 +28,24 @@ type requestData struct {
 	Host    string
 	Headers http.Header
 	Query   map[string][]string
+	Params  map[string]string
 	Body    map[string]any
+}
+
+var pathParamRe = regexp.MustCompile(`\{(\w+)\}`)
+
+func parsePathParams(pattern string) []string {
+	matches := pathParamRe.FindAllStringSubmatch(pattern, -1)
+	names := make([]string, len(matches))
+	for i, m := range matches {
+		names[i] = m[1]
+	}
+	return names
 }
 
 func (h *HTTP) buildHandler(endpoint config.Endpoint) (http.HandlerFunc, error) {
 	slog := h.logger
+	paramNames := parsePathParams(endpoint.Path)
 
 	tmpl, err := template.New(endpoint.Path).Funcs(
 		template.FuncMap{
@@ -59,7 +73,7 @@ func (h *HTTP) buildHandler(endpoint config.Endpoint) (http.HandlerFunc, error) 
 		data := struct {
 			Request requestData
 		}{
-			Request: newRequestData(r),
+			Request: newRequestData(r, paramNames),
 		}
 		slog.Debug(
 			"received request",
@@ -121,13 +135,19 @@ func randDelay(minDelay, maxDelay, p95 time.Duration) time.Duration {
 	return time.Duration(float64(minDelay) + (math.Pow(r, k) * float64(maxDelay)))
 }
 
-func newRequestData(r *http.Request) requestData {
+func newRequestData(r *http.Request, paramNames []string) requestData {
+	params := make(map[string]string, len(paramNames))
+	for _, name := range paramNames {
+		params[name] = r.PathValue(name)
+	}
+
 	rd := requestData{
 		Method:  r.Method,
 		Path:    r.URL.Path,
 		Host:    r.Host,
 		Headers: r.Header,
 		Query:   r.URL.Query(),
+		Params:  params,
 	}
 
 	if r.Body != nil {

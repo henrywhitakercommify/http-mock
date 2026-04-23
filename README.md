@@ -29,13 +29,20 @@ endpoints:
     minDelay: 10ms
     maxDelay: 2s
     p95Delay: 200ms
+
+  - path: /api/users/{id}
+    response:
+      code: 200
+      headers:
+        Content-Type: application/json
+      body: '{"id": "{{.Request.Params.id}}"}'
 ```
 
 ### Endpoint fields
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `path` | yes | The URL path to match |
+| `path` | yes | The URL path to match (supports path parameters, e.g. `/users/{id}`) |
 | `response.code` | yes | HTTP status code to return |
 | `response.body` | yes | Response body (supports Go templates) |
 | `response.headers` | no | Map of response headers to set |
@@ -54,6 +61,7 @@ Response bodies are rendered using Go's `text/template` package. The following d
 | `.Request.Host` | `string` | Request host |
 | `.Request.Headers` | `http.Header` | Request headers (multi-valued, use `index .Request.Headers.Name 0`) |
 | `.Request.Query` | `map[string][]string` | Query parameters (multi-valued, use `index .Request.Query.key 0`) |
+| `.Request.Params` | `map[string]string` | URL path parameters (e.g. `.Request.Params.id` for `/users/{id}`) |
 | `.Request.Body` | `map[string]any` | Parsed request body |
 
 Body parsing is based on the `Content-Type` header:

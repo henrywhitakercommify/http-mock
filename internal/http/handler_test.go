@@ -117,6 +117,49 @@ func TestBuildHandlerTemplateMethod(t *testing.T) {
 	}
 }
 
+func TestBuildHandlerTemplateParams(t *testing.T) {
+	endpoint := config.Endpoint{
+		Path:     "/users/{id}",
+		Response: config.Response{Body: "id: {{.Request.Params.id}}", Code: 200},
+	}
+
+	handler, err := testHTTP().buildHandler(endpoint)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/users/42", nil)
+	req.SetPathValue("id", "42")
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Body.String() != "id: 42" {
+		t.Fatalf("got body %q, want %q", rec.Body.String(), "id: 42")
+	}
+}
+
+func TestBuildHandlerTemplateMultipleParams(t *testing.T) {
+	endpoint := config.Endpoint{
+		Path:     "/orgs/{org}/users/{id}",
+		Response: config.Response{Body: "org: {{.Request.Params.org}}, id: {{.Request.Params.id}}", Code: 200},
+	}
+
+	handler, err := testHTTP().buildHandler(endpoint)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/orgs/acme/users/7", nil)
+	req.SetPathValue("org", "acme")
+	req.SetPathValue("id", "7")
+	rec := httptest.NewRecorder()
+	handler(rec, req)
+
+	if rec.Body.String() != "org: acme, id: 7" {
+		t.Fatalf("got body %q, want %q", rec.Body.String(), "org: acme, id: 7")
+	}
+}
+
 func TestBuildHandlerTemplateQuery(t *testing.T) {
 	endpoint := config.Endpoint{
 		Path:     "/query",
