@@ -17,6 +17,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/Masterminds/sprig/v3"
+
 	"github.com/google/uuid"
 	"github.com/henrywhitakercommify/http-mock/internal/config"
 )
@@ -47,7 +49,7 @@ func (h *HTTP) buildHandler(endpoint config.Endpoint) (http.HandlerFunc, error) 
 	slog := h.logger
 	paramNames := parsePathParams(endpoint.Path)
 
-	tmpl, err := template.New(endpoint.Path).Funcs(
+	tmpl, err := template.New(endpoint.Path).Funcs(sprig.FuncMap()).Funcs(
 		template.FuncMap{
 			"randstr": func(length int) string {
 				buf := make([]byte, length/2)
@@ -59,6 +61,13 @@ func (h *HTTP) buildHandler(endpoint config.Endpoint) (http.HandlerFunc, error) 
 			},
 			"time": func() string {
 				return time.Now().Format(time.RFC3339)
+			},
+			"join": func(items []any, separator string) string {
+				tmp := []string{}
+				for _, v := range items {
+					tmp = append(tmp, v.(string))
+				}
+				return strings.Join(tmp, separator)
 			},
 		},
 	).Parse(endpoint.Response.Body)
