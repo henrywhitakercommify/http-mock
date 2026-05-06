@@ -95,6 +95,8 @@ func (h *HTTP) buildHandler(endpoint config.Endpoint) (http.HandlerFunc, error) 
 			r.Method,
 			"body",
 			data.Request.Body,
+			"headers",
+			data.Request.Headers,
 		)
 
 		var buf bytes.Buffer
